@@ -1,0 +1,175 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && myRole() == 'admin';
+    }
+
+    function isCoach() {
+      return isSignedIn() && (myRole() == 'admin' || myRole() == 'coach');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Users: each person can read/update their own profile; admins manage everyone.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Public catalog content: anyone can read published items, only staff can write.
+    match /courses/{courseId} {
+      allow read: if resource.data.status == 'published' || isCoach();
+      allow write: if isCoach();
+    }
+
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if isCoach();
+    }
+
+    match /posts/{id} {
+      allow read: if resource.data.status == 'published' || isCoach();
+      allow write: if isCoach();
+    }
+
+    match /testimonials/{id} {
+      allow read: if true;
+      allow write: if isCoach();
+    }
+
+    match /live_classes/{id} {
+      allow read: if isSignedIn();
+      allow write: if isCoach();
+    }
+
+    // Course content: modules & lessons.
+    // Module titles power the public "curriculum" preview on /courses/[slug],
+    // so anyone can read them. Lesson content (video URLs etc.) stays behind
+    // sign-in since that's the paid material.
+    match /modules/{id} {
+      allow read: if true;
+      allow write: if isCoach();
+    }
+
+    match /lessons/{id} {
+      allow read: if isSignedIn() || isCoach();
+      allow write: if isCoach();
+    }
+
+    // Per-student lesson completion — each student owns their own rows.
+    match /lesson_progress/{id} {
+      allow read: if isCoach() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create, update: if isCoach() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Per-student personal notes against a lesson — private to the owner.
+    match /notes/{id} {
+      allow read, delete: if isCoach() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create, update: if isCoach() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+    }
+
+    // Lightweight per-lesson discussion — any signed-in student can read/post,
+    // only the author (or staff) can remove their own comment.
+    match /lesson_comments/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isCoach() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Personal / transactional data — owner or staff only.
+    match /enrollments/{id} {
+      allow read: if isCoach() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isCoach();
+      allow update: if isCoach() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{id} {
+      allow read: if isCoach() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isCoach();
+    }
+
+    match /certificates/{id} {
+      allow read: if isCoach() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isCoach();
+    }
+
+    // Community forum — any signed-in student can post; authors (or staff)
+    // can edit/delete their own posts. Reply counts are computed client-side
+    // from the replies collection rather than a counter field, so a thread
+    // update is only ever the author editing their own post (or a pin
+    // toggle by staff) — no cross-user writes needed.
+    match /forum_threads/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isCoach() || (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    match /forum_replies/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isCoach() || (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    // Staff-only operational collections.
+    match /coupons/{id} {
+      allow read: if isCoach();
+      allow write: if isAdmin();
+    }
+
+    match /email_campaigns/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /notifications/{id} {
+      // Just a broadcast log (title/body/sentAt) — any signed-in student can
+      // read it to see past announcements in their own dashboard.
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Public contact form submissions — anyone (including signed-out
+    // visitors) can submit one, but only staff can read/manage the inbox.
+    match /contact_messages/{id} {
+      allow create: if true;
+      allow read, update, delete: if isCoach();
+    }
+
+    // Newsletter / lead-magnet signups — same shape: open write, staff-only read.
+    match /newsletter_subscribers/{id} {
+      allow create: if true;
+      allow read, update, delete: if isCoach();
+    }
+
+    // ---- Call bookings ----
+    // Visitors never write here directly: /api/bookings/request validates the
+    // request and saves it with the Admin SDK. Only staff read and edit
+    // bookings from the client (Admin -> Call bookings).
+    match /bookings/{id} {
+      allow read, write: if isCoach();
+    }
+  }
+}

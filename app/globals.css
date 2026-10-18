@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+:root {
+  /* Palette: corporate blue, leaf green and gold on warm paper. */
+  --ink: #12263d;        /* deep navy: text, dark bands */
+  --ink-2: #2d5a87;      /* brand blue: links, hover, accents */
+  --ink-soft: #52627a;   /* muted blue-grey body text */
+  --paper: #f5f2e9;      /* page background */
+  --paper-2: #ebe6d6;    /* second surface */
+  --leaf: #4b6b43;       /* green: buttons on light, success */
+  --sage: #d4dfc9;       /* pale green surface */
+  --sage-soft: #e6ede0;
+  --gold: #b08a2c;       /* decorative gold */
+  --gold-ink: #7d6118;   /* gold dark enough for text on paper */
+  --gold-soft: #e6d6a6;
+  --mist: #dce7f1;       /* pale blue surface */
+  --white: #ffffff;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-leaf: var(--leaf);
+  --color-sage: var(--sage);
+  --color-sage-soft: var(--sage-soft);
+  --color-gold: var(--gold);
+  --color-gold-ink: var(--gold-ink);
+  --color-gold-soft: var(--gold-soft);
+  --color-mist: var(--mist);
+
+  --font-display: "Young Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --font-body: "Karla", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+html {
+  background: var(--paper);
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+::selection {
+  background: var(--gold-soft);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink-2);
+  outline-offset: 3px;
+}
+
+/* ---- small building blocks used across the public site ---- */
+
+/* Hand-drawn style wavy underline for one emphasised word per heading. */
+.mark {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='8' viewBox='0 0 24 8'%3E%3Cpath d='M0 4 Q3 0 6 4 T12 4 T18 4 T24 4' fill='none' stroke='%23b08a2c' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 24px 8px;
+  padding-bottom: 0.18em;
+}
+
+/* Arched frame: the recurring "door" shape. */
+.arch {
+  border-radius: 999px 999px 0 0;
+}
+
+/* Section numbering label, e.g. "02 / The ways". */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* Fade-in on scroll; JS adds .in. Falls back to visible without JS. */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+.no-js .reveal {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
